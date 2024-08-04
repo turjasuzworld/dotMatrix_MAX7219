@@ -14,12 +14,17 @@
 
 #define     __MAX_NO_DISPLAYS__     4
 
+typedef enum displayStates {
+    __SIMPLE_SCROLL_DOWN__,
+    __SIMPLE_SCROLL_THROUGH_,
+}e__displayStates;
+
 extern const unsigned char disp1[37][8];
 extern unsigned short MatrixSetup[7];
 extern const unsigned char* dispx[__MAX_NO_DISPLAYS__];
 
 //Functions
-extern  void    dotMatrixSendRowWise(const unsigned char* value[__MAX_NO_DISPLAYS__], uint8_t maxDisplays);
+extern  void    dotMatrixSendRowWise(const unsigned char* value[__MAX_NO_DISPLAYS__], uint8_t maxDisplays, e__displayStates displEffect);
 extern  void dotMatrixSend(const unsigned char* value, uint8_t displayNumber);
 extern  void sendData(unsigned short *data, uint8_t dispNo);
 #endif /* TW_MAX7219_DOTMATRIX_H_ */

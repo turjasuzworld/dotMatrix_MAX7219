@@ -149,58 +149,134 @@ void dotMatrixSend(const unsigned char* value, uint8_t displayNumber) {
 
 }
 
-static void loopingDisplay(uint8_t rowVal, const unsigned char* value[__MAX_NO_DISPLAYS__]) {
+static void loopingDisplay(uint8_t rowVal, const unsigned char* value[__MAX_NO_DISPLAYS__], e__displayStates displayEffect) {
     static unsigned short digitData = 0, zeros = 0;
     static uint8_t rowCnt , displNo, loopCtr;
     rowCnt = rowVal;
     // Using loops
-    for (loopCtr = 0; loopCtr < (rowCnt+1); ++loopCtr) {
-        displNo = 0;
-        while(displNo < __MAX_NO_DISPLAYS__) {
-            digitData = ((rowCnt+1)-loopCtr) << 8; // create the upper byte
-            digitData |= *(value[displNo] + (7 - loopCtr));
-            switch (displNo + 1) {
-            case 1:
-                sendData(&digitData, (displNo + 1));
-                break;
-            case 2:
-                sendData(&digitData, (displNo + 1));
-                sendData(&zeros, (displNo + 1));
-                break;
-            case 3:
-                sendData(&digitData, (displNo + 1));
-                sendData(&zeros, (displNo + 1));
-                sendData(&zeros, (displNo + 1));
-                break;
-            case 4:
-                sendData(&digitData, (displNo + 1));
-                sendData(&zeros, (displNo + 1));
-                sendData(&zeros, (displNo + 1));
-                sendData(&zeros, (displNo + 1));
-                break;
-            case 5:
-                sendData(&digitData, (displNo + 1));
-                sendData(&zeros, (displNo + 1));
-                sendData(&zeros, (displNo + 1));
-                sendData(&zeros, (displNo + 1));
-                sendData(&zeros, (displNo + 1));
-                break;
-            default:
-                break;
-            }
-            displNo++;
-        }
+    switch (displayEffect) {
+        case __SIMPLE_SCROLL_DOWN__:
+            for (loopCtr = 0; loopCtr < (rowCnt+1); ++loopCtr) {
+                displNo = 0;
+                while(displNo < __MAX_NO_DISPLAYS__) {
+                    digitData = ((rowCnt+1)-loopCtr) << 8; // create the upper byte
+                    digitData |= *(value[displNo] + (7 - loopCtr));
+                    switch (displNo + 1) {
+                    case 1:
+                        sendData(&digitData, (displNo + 1));
+                        break;
+                    case 2:
+                        sendData(&digitData, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        break;
+                    case 3:
+                        sendData(&digitData, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        break;
+                    case 4:
+                        sendData(&digitData, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        break;
+                    case 5:
+                        sendData(&digitData, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        break;
+                    default:
+                        break;
+                    }
+                    displNo++;
+                }
 
+            }
+
+        break;
+
+        case __SIMPLE_SCROLL_THROUGH_:// NOT IMPLEMENTED CORRECTLY //
+            for (loopCtr = 0; loopCtr < rowCnt; ++loopCtr) {
+                displNo = 0;
+                while(displNo < __MAX_NO_DISPLAYS__) {
+                    if(rowCnt > 7) {
+                        digitData = (8-loopCtr) << 8; // create the upper byte
+                        digitData |= *(value[displNo] + (7 - (loopCtr + 1)));
+                    }
+                    else {
+                        digitData = ((rowCnt+1)-loopCtr) << 8; // create the upper byte
+                        digitData |= *(value[displNo] + (7 - loopCtr));
+                    }
+
+                    switch (displNo + 1) {
+                    case 1:
+                        sendData(&digitData, (displNo + 1));
+                        break;
+                    case 2:
+                        sendData(&digitData, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        break;
+                    case 3:
+                        sendData(&digitData, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        break;
+                    case 4:
+                        sendData(&digitData, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        break;
+                    case 5:
+                        sendData(&digitData, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        sendData(&zeros, (displNo + 1));
+                        break;
+                    default:
+                        break;
+                    }
+                    displNo++;
+                }
+
+            }
+
+        break;
+
+
+
+
+        default:
+            break;
     }
+
 }
 
-void    dotMatrixSendRowWise(const unsigned char* value[__MAX_NO_DISPLAYS__], uint8_t maxDisplays) {
+void    dotMatrixSendRowWise(const unsigned char* value[__MAX_NO_DISPLAYS__], uint8_t maxDisplays, e__displayStates displEffect) {
     //static unsigned short digitData = 0, zeros = 0;
     static uint8_t rowCnt ;
-    for (rowCnt = 0; rowCnt < 8; ++rowCnt) {
-        loopingDisplay(rowCnt, value);
-        __delay_cycles(1600000);
+    switch (displEffect) {
+        case __SIMPLE_SCROLL_DOWN__:
+            for (rowCnt = 0; rowCnt < 8; ++rowCnt) {
+                loopingDisplay(rowCnt, value, __SIMPLE_SCROLL_DOWN__);
+                __delay_cycles(1600000);
+            }
+            break;
+
+        case __SIMPLE_SCROLL_THROUGH_:
+            for (rowCnt = 0; rowCnt < 16; ++rowCnt) {
+                loopingDisplay(rowCnt, value, __SIMPLE_SCROLL_THROUGH_);
+                __delay_cycles(1600000);
+            }
+            break;
+
+        default:
+            break;
     }
+
 }
 
 void    scrollUpDotMatrixDisplay(void) {
