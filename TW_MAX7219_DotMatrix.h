@@ -14,8 +14,9 @@
 
 #define     __MAX_NO_DISPLAYS__     4
 
-extern const unsigned char disp1[36][8];
+extern const unsigned char disp1[37][8];
 extern unsigned short MatrixSetup[7];
+extern const unsigned char* dispx[__MAX_NO_DISPLAYS__];
 
 //Functions
 extern  void    dotMatrixSendRowWise(const unsigned char* value[__MAX_NO_DISPLAYS__], uint8_t maxDisplays);

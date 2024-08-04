@@ -3,9 +3,9 @@
 #include <TW_m430g2553_MiscApps.h>
 #include <TW_I2C.h>
 
-unsigned char ReadData[7];
+unsigned char ReadData[7];//ss mm hh DoW DD MM YY
 unsigned char SetRtcData[7] = {0x00, 0x19, 0x01, 0x04, 0x25, 0x07, 0x24};//ss mm hh DoW DD MM YY
-const unsigned char* dispx[__MAX_NO_DISPLAYS__] = {&disp1[0][0],&disp1[1][0],&disp1[2][0],&disp1[3][0]};
+
 /**
  * main.c
  */
@@ -43,9 +43,22 @@ int main(void)
 //           dotMatrixSend(&disp1[ReadData[2] & 0x0F][0], 3);
 //           dotMatrixSend(&disp1[ReadData[1] >> 4][0], 2);
 //           dotMatrixSend(&disp1[ReadData[1] & 0x0F][0], 1);
+	    //ReadData[7];//ss mm hh DoW DD MM YY
+	    dispx[3] = &disp1[ReadData[2] >> 4][0];
+	    dispx[2] = &disp1[ReadData[2] & 0x0F][0];
+        dispx[1] = &disp1[ReadData[1] >> 4][0];
+        dispx[0] = &disp1[ReadData[1] & 0x0F][0];
 
 	    dotMatrixSendRowWise(dispx, 4);
            __delay_cycles(16000000);
+
+        dispx[3] = &disp1[36][0];
+        dispx[2] = &disp1[36][0];
+        dispx[1] = &disp1[36][0];
+        dispx[0] = &disp1[36][0];
+
+        dotMatrixSendRowWise(dispx, 4);
+
 //          }
 	}
 	return 0;
