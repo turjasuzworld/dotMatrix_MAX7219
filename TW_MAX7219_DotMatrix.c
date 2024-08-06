@@ -255,21 +255,40 @@ static void loopingDisplay(uint8_t rowVal, const unsigned char* value[__MAX_NO_D
 
 }
 
-void    dotMatrixSendRowWise(const unsigned char* value[__MAX_NO_DISPLAYS__], uint8_t maxDisplays, e__displayStates displEffect) {
+void    dotMatrixSendRowWise(const unsigned char* value[__MAX_NO_DISPLAYS__], uint8_t maxDisplays, e__displayStates displEffect, e__dispScrollSpeed dispScrlSpd) {
     //static unsigned short digitData = 0, zeros = 0;
     static uint8_t rowCnt ;
     switch (displEffect) {
         case __SIMPLE_SCROLL_DOWN__:
             for (rowCnt = 0; rowCnt < 8; ++rowCnt) {
                 loopingDisplay(rowCnt, value, __SIMPLE_SCROLL_DOWN__);
-                __delay_cycles(1600000);
+                switch (dispScrlSpd) {
+                    case __SCROLL_SFAST__:
+                        __delay_cycles(SysFreq/1000);
+                        break;
+                    case __SCROLL_FAST__:
+                        __delay_cycles(SysFreq/200);
+                        break;
+                    case __SCROLL_MED__:
+                        __delay_cycles(SysFreq/100);
+                        break;
+                    case __SCROLL_SLOW__:
+                        __delay_cycles(SysFreq);
+                        break;
+                    case __SCROLL_SSLOW__:
+                        __delay_cycles(SysFreq*2);
+                        break;
+                    default:
+                        break;
+                }
+
             }
             break;
 
         case __SIMPLE_SCROLL_THROUGH_:
             for (rowCnt = 0; rowCnt < 16; ++rowCnt) {
                 loopingDisplay(rowCnt, value, __SIMPLE_SCROLL_THROUGH_);
-                __delay_cycles(1600000);
+                __delay_cycles(16000);
             }
             break;
 
