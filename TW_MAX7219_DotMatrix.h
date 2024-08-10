@@ -36,4 +36,5 @@ extern const unsigned char* dispx[__MAX_NO_DISPLAYS__];
 extern  void    dotMatrixSendRowWise(const unsigned char* value[__MAX_NO_DISPLAYS__], uint8_t maxDisplays, e__displayStates displEffect, e__dispScrollSpeed dispScrlSpd);
 extern  void dotMatrixSend(const unsigned char* value, uint8_t displayNumber);
 extern  void sendData(unsigned short *data, uint8_t dispNo);
+extern  void  interDisplayBlanking(e__displayStates displEffect, e__dispScrollSpeed dispScrlSpd);
 #endif /* TW_MAX7219_DOTMATRIX_H_ */

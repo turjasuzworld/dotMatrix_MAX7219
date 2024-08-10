@@ -255,6 +255,15 @@ static void loopingDisplay(uint8_t rowVal, const unsigned char* value[__MAX_NO_D
 
 }
 
+void  interDisplayBlanking(e__displayStates displEffect, e__dispScrollSpeed dispScrlSpd) {
+    dispx[3] = &disp1[36][0];
+    dispx[2] = &disp1[36][0];
+    dispx[1] = &disp1[36][0];
+    dispx[0] = &disp1[36][0];
+
+    dotMatrixSendRowWise(dispx, 4, displEffect, dispScrlSpd);
+}
+
 void    dotMatrixSendRowWise(const unsigned char* value[__MAX_NO_DISPLAYS__], uint8_t maxDisplays, e__displayStates displEffect, e__dispScrollSpeed dispScrlSpd) {
     //static unsigned short digitData = 0, zeros = 0;
     static uint8_t rowCnt ;
@@ -283,6 +292,7 @@ void    dotMatrixSendRowWise(const unsigned char* value[__MAX_NO_DISPLAYS__], ui
                 }
 
             }
+
             break;
 
         case __SIMPLE_SCROLL_THROUGH_:
