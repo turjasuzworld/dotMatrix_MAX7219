@@ -15,6 +15,12 @@ volatile unsigned char tempData[2][8];
 int main(void)
 {
 	WDTCTL = WDTPW | WDTHOLD;	// stop watchdog timer
+//	volatile unsigned char* p;
+//	p = (volatile unsigned char*)0x22;//P1DIR
+//	*p = 0x01;
+//	p = (volatile unsigned char*)0x21;
+//	*p = 0x01;
+//	*p &= ~0x01;
 	P1OUT &= ~(BIT2 + BIT4);
 	P1DIR |= BIT2 + BIT4;
 	P2OUT &= ~(BIT0 + BIT1 + BIT2 + BIT3);
@@ -24,15 +30,13 @@ int main(void)
 
 //	I2CSLV_Save_Burst(0x68, 0, SetRtcData, 7);
 //	while(1);
-	int var=0, shiftCalc=0 ;
+	int var=0, dispCtr, shiftCalc=0 ;
 	  while(var<sizeof(MatrixSetup)/sizeof(MatrixSetup[0])) {
-
-
-	      sendData(&MatrixSetup[var],1);
-	      sendData(&MatrixSetup[var],2);
-	      sendData(&MatrixSetup[var],3);
-	      sendData(&MatrixSetup[var],4);
-
+	      dispCtr=1;
+	      while(dispCtr <= __MAX_NO_DISPLAYS__) {
+	          sendData(&MatrixSetup[var],dispCtr);
+	          dispCtr++;
+	      }
 	      var++;
 	      __delay_cycles(160);
 
@@ -57,7 +61,7 @@ int main(void)
         dispx[0] = &disp1[ReadData[1] & 0x0F][0];
 
 	    dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-           __delay_cycles(16000000);
+           __delay_cycles(16000000*5);
 
            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
 
@@ -65,9 +69,8 @@ int main(void)
         dispx[2] = &disp1[ReadData[0] & 0x0F][0];
 
         dotMatrixSendRowWise(dispx, 2, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-           __delay_cycles(16000000);
-
-           interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+           __delay_cycles(8000000);
+        interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
 
         dispx[3] = &disp1[36][0];
         dispx[2] = &disp1[ReadData[4] >> 4][0];
@@ -75,9 +78,8 @@ int main(void)
         dispx[0] = &disp1[36][0];
 
         dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-           __delay_cycles(16000000);
-
-           interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+           __delay_cycles(10000000);
+        interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
 
         // MONTH //
         dispx[3] = &disp1[36][0];
@@ -86,7 +88,7 @@ int main(void)
         dispx[0] = &disp1[months[(10*(ReadData[5]& 1)+(ReadData[5]& 0x0F))-(unsigned int)1][2] - (unsigned int)55][0];
 
         dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-           __delay_cycles(16000000);
+           __delay_cycles(10000000);
 
            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
 
@@ -97,7 +99,7 @@ int main(void)
         dispx[0] = &disp1[dow[(ReadData[3]& 0x0F)-(unsigned int)1][2] - (unsigned int)55][0];
 
         dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-           __delay_cycles(16000000);
+           __delay_cycles(10000000);
 
            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
 
@@ -108,7 +110,7 @@ int main(void)
         dispx[0] = &disp1[ReadData[6] & 0x0F][0];
 
         dotMatrixSendRowWise(dispx, 2, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-           __delay_cycles(16000000);
+           __delay_cycles(10000000);
 
            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
 //          }

@@ -86,9 +86,6 @@ void sendData(unsigned short *data, uint8_t dispNo) {
     volatile uint8_t dispNumber;
     dispNumber = dispNo - 1;
     P2OUT &= ~(BIT0 + BIT1 + BIT2 + BIT3);
-
-//    UCA0TXBUF = (*data)>>8;
-//    UCA0TXBUF = MatrixData[count] & 0xFF;
     for (bitCnt = 0; bitCnt < 16; bitCnt++) {
         if((*data)&(0x8000 >> bitCnt)) {
             P1OUT |= BIT2;
