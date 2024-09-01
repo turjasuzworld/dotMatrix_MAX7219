@@ -48,15 +48,15 @@ int main(void)
 	    for (var = 0; var < 8; ++var) {
 	        tempData[0][var] = disp1[ReadData[2] & 0x0F][var];
         }
-	    tempData[0][2] |= 1;
-	    tempData[0][5] |= 1;
+	    tempData[0][1] |= 1;
+	    tempData[0][6] |= 1;
 	    dispx[2] = (const unsigned char*)&tempData[0][0];
 	    shiftCalc = ReadData[1] >> 4;
         for (var = 0; var < 8; ++var) {
             tempData[1][var] = disp1[shiftCalc][var];
         }
-        tempData[1][2] |= 0x80;
-        tempData[1][5] |= 0x80;
+        tempData[1][1] |= 0x80;
+        tempData[1][6] |= 0x80;
         dispx[1] = (const unsigned char*)&tempData[1][0];
         dispx[0] = &disp1[ReadData[1] & 0x0F][0];
 
@@ -83,9 +83,9 @@ int main(void)
 
         // MONTH //
         dispx[3] = &disp1[36][0];
-        dispx[2] = &disp1[months[(10*(ReadData[5]& 1)+(ReadData[5]& 0x0F))-(unsigned int)1][0] - (unsigned int)55][0];
-        dispx[1] = &disp1[months[(10*(ReadData[5]& 1)+(ReadData[5]& 0x0F))-(unsigned int)1][1] - (unsigned int)55][0];
-        dispx[0] = &disp1[months[(10*(ReadData[5]& 1)+(ReadData[5]& 0x0F))-(unsigned int)1][2] - (unsigned int)55][0];
+        dispx[2] = &disp1[months[(10*(ReadData[5]>>4)+(ReadData[5]& 0x0F))-(unsigned int)1][0] - (unsigned int)55][0];
+        dispx[1] = &disp1[months[(10*(ReadData[5]>>4)+(ReadData[5]& 0x0F))-(unsigned int)1][1] - (unsigned int)55][0];
+        dispx[0] = &disp1[months[(10*(ReadData[5]>>4)+(ReadData[5]& 0x0F))-(unsigned int)1][2] - (unsigned int)55][0];
 
         dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
            __delay_cycles(10000000);
