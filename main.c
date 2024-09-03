@@ -3,11 +3,12 @@
 #include <TW_m430g2553_MiscApps.h>
 #include <TW_I2C.h>
 
-unsigned char ReadData[7];//ss mm hh DoW DD MM YY
+volatile float     temp_integer, temp_decimal;
+unsigned char ReadData[19];//ss mm hh DoW DD MM YY
 unsigned char SetRtcData[7] = {0x00, 0x37, 0x02, 0x01, 0x05, 0x08, 0x24};//ss mm hh DoW DD MM YY
 const   unsigned  char  dow[7][3] = {"MON","TUE","WED","THU","FRI","SAT","SUN"};
 const   unsigned  char  months[12][3] = {"JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"};
-volatile unsigned char tempData[2][8];
+volatile unsigned char tempData[3][8];
 
 /**
  * main.c
@@ -43,7 +44,7 @@ int main(void)
 	  }
 	while(1) {
 	    //I2CSLV_RRead_Burst(0x68, 0, 7, ReadData);
-	    ReadFromDS1307MultiBytes(0, 7, ReadData);
+	    ReadFromDS1307MultiBytes(0, 19, ReadData);
 	    dispx[3] = &disp1[ReadData[2] >> 4][0];
 	    for (var = 0; var < 8; ++var) {
 	        tempData[0][var] = disp1[ReadData[2] & 0x0F][var];
@@ -63,13 +64,36 @@ int main(void)
 	    dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
            __delay_cycles(16000000*5);
 
-           interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+        interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
 
         dispx[3] = &disp1[ReadData[0] >> 4][0];
         dispx[2] = &disp1[ReadData[0] & 0x0F][0];
 
         dotMatrixSendRowWise(dispx, 2, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
            __delay_cycles(8000000);
+
+        interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+        // Calculate the temperature from 2's complement
+        unsigned char mock = ReadData[18] >> 6;
+        volatile int helperVar = 0;
+        temp_integer = TW_CalcDecFrmTwozComp(&ReadData[17]);
+        temp_integer += 0.25*TW_CalcDecFrmTwozComp(&mock);
+        temp_integer *= 100.00;
+        helperVar = (int)temp_integer;
+        dispx[3] = &disp1[helperVar/1000][0];
+
+        for (var = 0; var < 8; ++var) {
+            tempData[2][var] = disp1[(helperVar%1000)/100][var];
+        }
+        tempData[2][7] |= 1; // creating the dot
+
+        dispx[2] = (const unsigned char*)&tempData[2][0];
+        dispx[1] = &disp1[(helperVar%100)/10][0];
+        dispx[0] = &disp1[helperVar%10][0];
+
+        dotMatrixSendRowWise(dispx, 2, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+        __delay_cycles(8000000);
+
         interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
 
         dispx[3] = &disp1[36][0];

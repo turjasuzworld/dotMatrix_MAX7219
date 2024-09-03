@@ -62,6 +62,7 @@ MEMORY
     INFOC                   : origin = 0x1040, length = 0x0040
     INFOD                   : origin = 0x1000, length = 0x0040
     FLASH                   : origin = 0xC000, length = 0x3FDE
+    FLASH2					: origin = 0xB000, length = 0x00FF
     BSLSIGNATURE            : origin = 0xFFDE, length = 0x0002, fill = 0xFFFF
     INT00                   : origin = 0xFFE0, length = 0x0002
     INT01                   : origin = 0xFFE2, length = 0x0002
@@ -94,6 +95,7 @@ SECTIONS
     .stack      : {} > RAM (HIGH)           /* Software system stack             */
 
     .text       : {} > FLASH                /* Code                              */
+    .text2		: {} > FLASH2
     .cinit      : {} > FLASH                /* Initialization tables             */
     .const      : {} > FLASH                /* Constant data                     */
     .bslsignature  : {} > BSLSIGNATURE      /* BSL Signature                     */

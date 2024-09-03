@@ -55,4 +55,43 @@ void CalibrateDco(uint8_t freq) {
 
 }
 
+/*
+ * Function to convert 2's complement to equivalent decimal
+ */
+int TW_CalcDecFrmTwozComp(unsigned char* regPtr) {
+    unsigned char regVal = *regPtr;
+    static int retVal;
+#ifndef __MSP430G2553
+    if(regVal & 0x80) {
+        retVal = ((regVal & 0x01)*(pow(2, 0))) +
+                 ((regVal & 0x02)*(pow(2, 1))) +
+                 ((regVal & 0x04)*(pow(2, 2))) +
+                 ((regVal & 0x08)*(pow(2, 3))) +
+                 ((regVal & 0x10)*(pow(2, 4))) +
+                 ((regVal & 0x20)*(pow(2, 5))) +
+                 ((regVal & 0x40)*(pow(2, 6))) -
+                 ((regVal & 0x80)*(pow(2, 7))) - 1;
+    } else {
+        retVal = ((regVal & 0x01)*(pow(2, 0))) +
+                 ((regVal & 0x02)*(pow(2, 1))) +
+                 ((regVal & 0x04)*(pow(2, 2))) +
+                 ((regVal & 0x08)*(pow(2, 3))) +
+                 ((regVal & 0x10)*(pow(2, 4))) +
+                 ((regVal & 0x20)*(pow(2, 5))) +
+                 ((regVal & 0x40)*(pow(2, 6)));
+    }
+#else
+    if(regVal & 0x80) {
+        regVal &= 0x7F; // mask out the sign bit
+        regVal ^= 0x7F; // invert the bits
+        regVal += 1;    // Add 1
+        retVal = ((int)(regVal))*(-1);
+    } else {
+        retVal = (int)(regVal);
+    }
+
+#endif
+    return retVal;
+}
+
 #endif /* TW_M430G2553_MISCAPPS_H_*/
