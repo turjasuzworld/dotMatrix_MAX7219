@@ -77,7 +77,7 @@ const unsigned char disp1[37][8]={
 {0,0,0,0,0,0,0,0},//space fill
 
 };
-unsigned short MatrixSetup[7] = {0x0F01,0x0C01,0x0900,0x0A01,0x0B07,0x0C01,0x0F00};
+unsigned short MatrixSetup[7] = {0x0F01,0x0C01,0x0900,0x0A01,0x0B07,0x0F00,0x0C01};
 const unsigned char* dispx[__MAX_NO_DISPLAYS__] = {&disp1[0][0],&disp1[1][0],&disp1[2][0],&disp1[3][0]};
 
 void sendData(unsigned short *data, uint8_t dispNo) {
@@ -85,23 +85,30 @@ void sendData(unsigned short *data, uint8_t dispNo) {
     uint8_t bitCnt;
     volatile uint8_t dispNumber;
     dispNumber = dispNo - 1;
-    P2OUT &= ~(BIT0 + BIT1 + BIT2 + BIT3);
+    _resetDisplaySelectPortOut;
+    //P2OUT &= ~(BIT0 + BIT1 + BIT2 + BIT3);
     for (bitCnt = 0; bitCnt < 16; bitCnt++) {
         if((*data)&(0x8000 >> bitCnt)) {
-            P1OUT |= BIT2;
+            //P1OUT |= BIT3;
+            _setDataPortOut;
         }
         else {
-            P1OUT &= ~BIT2;
+            //P1OUT &= ~BIT3;
+            _resetDataPortOut;
         }
-        P1OUT |= BIT4;
+        //P1OUT |= BIT4;
+        _setClockPortOut;
         __delay_cycles(1);
-        P1OUT &= ~BIT4;
+        //P1OUT &= ~BIT4;
+        _resetClockPortOut;
         __delay_cycles(1);
     }
 
-    P2OUT |= (1<<dispNumber);
+    //P2OUT |= (1<<dispNumber);
+    _accessDisplaySelectPort |= (1<<dispNumber + 2);
     __delay_cycles(1);
-    P2OUT &= ~(1<<dispNumber);
+    //P2OUT &= ~(1<<dispNumber);
+    _accessDisplaySelectPort &= ~(1<<dispNumber + 2);
     __delay_cycles(1);
 }
 

@@ -14,6 +14,16 @@
 
 #define     __MAX_NO_DISPLAYS__     4
 #define     SysFreq     16000000
+//TODO: Change all the required ports here //
+#define     _setClockPortDir    P3DIR |= BIT1
+#define     _setClockPortOut    P3OUT |= BIT1
+#define     _resetClockPortOut    P3OUT &= ~BIT1
+#define     _setDataPortDir    P3DIR |= BIT0
+#define     _setDataPortOut    P3OUT |= BIT0
+#define     _resetDataPortOut    P3OUT &= ~BIT0
+#define     _resetDisplaySelectPortOut    P3OUT &= ~(BIT2 + BIT3 + BIT4 + BIT5)
+#define     _setDisplaySelectPortDir    P3DIR |= (BIT2 + BIT3 + BIT4 + BIT5)
+#define     _accessDisplaySelectPort    P3OUT
 
 typedef enum displayStates {
     __SIMPLE_SCROLL_DOWN__,

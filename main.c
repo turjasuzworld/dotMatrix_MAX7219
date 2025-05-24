@@ -2,10 +2,11 @@
 #include <TW_MAX7219_DotMatrix.h>
 #include <TW_m430g2553_MiscApps.h>
 #include <TW_I2C.h>
+#include <TW_ADC10.h>
 
 volatile float     temp_integer, temp_decimal;
-unsigned char ReadData[19];//ss mm hh DoW DD MM YY
-unsigned char SetRtcData[7] = {0x00, 0x37, 0x02, 0x01, 0x05, 0x08, 0x24};//ss mm hh DoW DD MM YY
+unsigned char ReadData[19] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18};//ss mm hh DoW DD MM YY
+unsigned char SetRtcData[7] = {0x00, 0x48, 0x18, 0x04, 0x22, 0x05, 0x25};//ss mm hh DoW DD MM YY
 const   unsigned  char  dow[7][3] = {"MON","TUE","WED","THU","FRI","SAT","SUN"};
 const   unsigned  char  months[12][3] = {"JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"};
 volatile unsigned char tempData[3][8];
@@ -15,19 +16,37 @@ volatile unsigned char tempData[3][8];
  */
 int main(void)
 {
-	WDTCTL = WDTPW | WDTHOLD;	// stop watchdog timer
+    WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
+
+   struct adc10Params ADC10_InitTypeDef = {
+        .refVoltage = ADC10_REF_VOLTAGE_VCC_VSS,
+        .inputChannel = ADC10_INPUT_CH_0,
+        .startAdcNow = true,
+        .enableInterrupt = ADC10_ENABLE_INTRPT,
+        .sampleHoldTime = ADC10_SHT_64_CYCLES,
+        .clockSource = ADC10_CLK_SRC_ADC10CLK,
+
+    };
+
 //	volatile unsigned char* p;
 //	p = (volatile unsigned char*)0x22;//P1DIR
 //	*p = 0x01;
 //	p = (volatile unsigned char*)0x21;
 //	*p = 0x01;
 //	*p &= ~0x01;
-	P1OUT &= ~(BIT2 + BIT4);
-	P1DIR |= BIT2 + BIT4;
-	P2OUT &= ~(BIT0 + BIT1 + BIT2 + BIT3);
-	P2DIR |= (BIT0 + BIT1 + BIT2 + BIT3);
+	//P1OUT &= ~(BIT3 + BIT4);
+	//P1DIR |= BIT3 + BIT4;
+	_setClockPortDir;
+	_setDataPortDir;
+	_resetDisplaySelectPortOut;
+	_setDisplaySelectPortDir;
+//	P2OUT &= ~(BIT0 + BIT1 + BIT2 + BIT3);
+//	P2DIR |= (BIT0 + BIT1 + BIT2 + BIT3);
 	CalibrateDco(16);
 	BasicInitUSCI(1); // Master mode I2C
+	InitADC10_new(&ADC10_InitTypeDef);
+
+
 
 //	I2CSLV_Save_Burst(0x68, 0, SetRtcData, 7);
 //	while(1);
@@ -42,6 +61,10 @@ int main(void)
 	      __delay_cycles(160);
 
 	  }
+
+	  while(1) {
+	        controlConversion(ADC10_START_CONVERSION);
+	    }
 	while(1) {
 	    //I2CSLV_RRead_Burst(0x68, 0, 7, ReadData);
 	    ReadFromDS1307MultiBytes(0, 19, ReadData);
