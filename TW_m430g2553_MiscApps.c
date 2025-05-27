@@ -94,4 +94,33 @@ int TW_CalcDecFrmTwozComp(unsigned char* regPtr) {
     return retVal;
 }
 
+int calculate_light_intensity(uint16_t adc_value) {
+#ifdef _TI_MATH_H_
+    // ADC reference voltage
+    float Vref = 3.3;
+    // Known resistor value in ohms
+    float R_fixed = 10000.0;
+
+    // Convert ADC value to voltage
+    float voltage = (adc_value / 1023.0) * Vref;
+
+    // Calculate LDR resistance using voltage divider formula
+    float R_ldr = (voltage * R_fixed) / (Vref - voltage + 0.0001); // small offset to prevent divide-by-zero
+
+    // Approximate formula to convert LDR resistance to light intensity in lux
+    // This formula is based on typical LDR characteristics (e.g., at 10k ohms ≈ 100 lux)
+    // lux = A * (R_ldr)^B; using typical values A ≈ 500, B ≈ -1.4
+    float lux = 500 * pow(R_ldr, -1.4);
+
+    // Return as integer
+    return (int)lux;
+#else
+    const uint16_t adc_to_lux[16] = {5, 7, 10, 15, 25, 40, 60, 90,130, 180, 250, 350, 500, 650, 800, 1000};
+    uint8_t index = adc_value / 64; // 0 to 16 range
+    if (index > 15) index = 15;
+    return adc_to_lux[index];
+
+#endif
+}
+
 #endif /* TW_M430G2553_MISCAPPS_H_*/

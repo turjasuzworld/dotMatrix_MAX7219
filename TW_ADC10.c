@@ -160,6 +160,8 @@ void                    controlConversion(uint8_t state)
 #else
         while(ADC10CTL1 & ADC10BUSY); // Blocking until Conversion is done
         ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
+//        while(ADC10CTL1 & ADC10BUSY); // Blocking until Conversion is done
+//        gAdcRawVal = ADC10MEM;
         __bis_SR_register(GIE);
 #endif
 

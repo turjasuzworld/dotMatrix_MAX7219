@@ -77,7 +77,7 @@ const unsigned char disp1[37][8]={
 {0,0,0,0,0,0,0,0},//space fill
 
 };
-unsigned short MatrixSetup[7] = {0x0F01,0x0C01,0x0900,0x0A01,0x0B07,0x0F00,0x0C01};
+unsigned short MatrixSetup[7] = {0x0F01,0x0C01,0x0900,0x0A00,0x0B07,0x0F00,0x0C01};
 const unsigned char* dispx[__MAX_NO_DISPLAYS__] = {&disp1[0][0],&disp1[1][0],&disp1[2][0],&disp1[3][0]};
 
 void sendData(unsigned short *data, uint8_t dispNo) {
