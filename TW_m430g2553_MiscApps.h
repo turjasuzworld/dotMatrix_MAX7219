@@ -13,11 +13,11 @@
 // Macros
 
 // Global Vars
-
+extern  int gAmbientLux;
 
 //Global Functions
 extern void CalibrateDco(uint8_t freq);
 extern  int TW_CalcDecFrmTwozComp(unsigned char*);
-extern int calculate_light_intensity(uint16_t );
+extern void calculate_light_intensity(uint16_t , int* );
 
 //Others

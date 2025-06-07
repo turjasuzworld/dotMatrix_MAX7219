@@ -73,6 +73,7 @@ struct adc10Params{
     uint16_t sampleHoldTime;   // Sample and hold time
     uint8_t enableInterrupt; // Enable ADC interrupt
     bool    startAdcNow;        // Start the ADC10 as soon as config finishes
+    uint_fast8_t    convertDone;
 } ;
 
 extern          uint16_t                gAdcRawVal;
@@ -80,6 +81,8 @@ extern          void                    InitADC10(unsigned char, unsigned char, 
 extern          void                    ConvertADC(int, unsigned char, unsigned short*);
 extern          void                    controlConversion(uint8_t);
 extern          uint8_t                 InitADC10_new(struct adc10Params* );
+//extern          void (*adc10_callback)(int  gParamToBeSetThru_CB);
+extern          void register_adc10_callback(void (*callback)(uint16_t,int*));
 
 
 

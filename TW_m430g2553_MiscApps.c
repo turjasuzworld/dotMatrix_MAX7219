@@ -8,6 +8,10 @@
 #define TW_M430G2553_MISCAPPS_H_
 #include <TW_m430g2553_MiscApps.h>
 
+int gAmbientLux;
+
+
+
 void CalibrateDco(uint8_t freq) {
 
     switch (freq) {
@@ -94,7 +98,7 @@ int TW_CalcDecFrmTwozComp(unsigned char* regPtr) {
     return retVal;
 }
 
-int calculate_light_intensity(uint16_t adc_value) {
+void calculate_light_intensity(uint16_t adc_value, int* p_computedLux) {
 #ifdef _TI_MATH_H_
     // ADC reference voltage
     float Vref = 3.3;
@@ -118,8 +122,8 @@ int calculate_light_intensity(uint16_t adc_value) {
     const uint16_t adc_to_lux[16] = {5, 7, 10, 15, 25, 40, 60, 90,130, 180, 250, 350, 500, 650, 800, 1000};
     uint8_t index = adc_value / 64; // 0 to 16 range
     if (index > 15) index = 15;
-    return adc_to_lux[index];
-
+    *p_computedLux = adc_to_lux[index];
+    gAmbientLux = adc_to_lux[index];
 #endif
 }
 

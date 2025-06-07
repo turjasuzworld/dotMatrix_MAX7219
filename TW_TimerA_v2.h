@@ -19,6 +19,8 @@
 #define         CLR_TIMER               true
 #define         TA_CCR0_IE              true
 
+#define         _DIV_CLK_BY_8           8
+
 extern  uint8_t*    gPtr_TimerExpire;
 
 extern int8_t _ElapseTimeCCR0_A0(unsigned char , unsigned char , unsigned char , uint16_t,  uint16_t,uint8_t* );

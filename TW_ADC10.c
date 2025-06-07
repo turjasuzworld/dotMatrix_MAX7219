@@ -14,7 +14,18 @@
 #include "TW_ADC10.h"
 
 
-uint16_t                gAdcRawVal = 0;
+            uint16_t                gAdcRawVal = 0;
+volatile    int                     gComputedLux = 0;
+volatile    uint_fast8_t*            adcIntrptSts = 0;
+
+void (*adc10_callback)(uint16_t adc10RawVal, int* pComputedLuxVar) = 0;
+
+//Function to register the callback:
+void register_adc10_callback(void (*callback)(uint16_t,int*)) {
+    adc10_callback = callback;
+}
+
+
 uint8_t InitADC10_new(struct adc10Params* gAdc10Params)
 {
 
@@ -147,13 +158,14 @@ uint8_t InitADC10_new(struct adc10Params* gAdc10Params)
             break;
     }
     ADC10CTL0 |= ADC10ON ;
-
+    adcIntrptSts = &gAdc10Params->convertDone;
 }
 
 
 void                    controlConversion(uint8_t state)
 {
     if(ADC10_START_CONVERSION == state) {
+        *adcIntrptSts = 1; // ensures the gFlag indicating the ADC conversion is done is reset.1= conversion in progress, 2 = done
 #ifdef USE_ADC10_LPM
         ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
         __bis_SR_register(LPM0_bits + GIE);        // LPM0, ADC10_ISR will force exi
@@ -340,7 +352,24 @@ void      ConvertADC(int channel, unsigned char ICType, unsigned short* ADCVal)
 }
 
 
-// ADC10 interrupt service routine
+//// ADC10 interrupt service routine
+//#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+//#pragma vector=ADC10_VECTOR
+//__interrupt void ADC10_ISR (void)
+//#elif defined(__GNUC__)
+//void __attribute__ ((interrupt(ADC10_VECTOR))) ADC10_ISR (void)
+//#else
+//#error Compiler not supported!
+//#endif
+//{
+//  //__bic_SR_register_on_exit(CPUOFF);        // Clear CPUOFF bit from 0(SR)
+//#ifdef USE_ADC10_LPM
+//    __bic_SR_register_on_exit(LPM0_bits);     // exit power save mode
+//#endif
+//    gAdcRawVal = ADC10MEM;
+//}
+
+// ADC10 interrupt service routine (modified with CB):
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=ADC10_VECTOR
 __interrupt void ADC10_ISR (void)
@@ -350,9 +379,15 @@ void __attribute__ ((interrupt(ADC10_VECTOR))) ADC10_ISR (void)
 #error Compiler not supported!
 #endif
 {
-  //__bic_SR_register_on_exit(CPUOFF);        // Clear CPUOFF bit from 0(SR)
 #ifdef USE_ADC10_LPM
     __bic_SR_register_on_exit(LPM0_bits);     // exit power save mode
 #endif
     gAdcRawVal = ADC10MEM;
+    if (adc10_callback) {
+        //adc10_callback(gAdcRawVal,pComputedLuxVar); // call and ignore return value
+        adc10_callback(gAdcRawVal, (int*)&gComputedLux);
+        *adcIntrptSts = 2; // sets global flag as 2= done
+        __no_operation();
+    }
 }
+

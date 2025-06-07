@@ -5,6 +5,8 @@
 #include <TW_ADC10.h>
 #include <TW_TimerA_v2.h>
 
+#define     __NUM_OF_LDR_READS_TO_AVG__     (20)        // 20 reads/ sec. So 3 sec will have 60 reads// Adjust accordingly
+
 typedef enum    {
     ENTRY_STATE,
     SENSE_AMB_LGHT_STATE,
@@ -14,13 +16,15 @@ typedef enum    {
 } gDeviceStateMachine;
 
 volatile float     temp_integer, temp_decimal;
-int shiftCalc=0, gAmbientLux = 0 ;
+int shiftCalc=0;
 unsigned char ReadData[19] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18};//ss mm hh DoW DD MM YY
 unsigned char SetRtcData[7] = {0x00, 0x48, 0x18, 0x04, 0x22, 0x05, 0x25};//ss mm hh DoW DD MM YY
 const   unsigned  char  dow[7][3] = {"MON","TUE","WED","THU","FRI","SAT","SUN"};
 const   unsigned  char  months[12][3] = {"JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"};
 volatile unsigned char tempData[3][8];
 static uint8_t gFlag = 0;
+float gAdcValAverager;
+uint8_t gAdcValAverager_count;
 
 /*
  * Other Fxns..
@@ -38,103 +42,135 @@ void initSend_MAX7219(unsigned short* ptrToMax7219InitMatrix, uint_fast8_t size)
     }
 }
 
-void    ClockTempDisplay(void) {
+void    ClockTempDisplay(uint_least16_t delayInCycles) {
     int var=0;
     //I2CSLV_RRead_Burst(0x68, 0, 7, ReadData);
     ReadFromDS1307MultiBytes(0, 19, ReadData);
-    dispx[3] = &disp1[ReadData[2] >> 4][0];
-    for (var = 0; var < 8; ++var) {
-        tempData[0][var] = disp1[ReadData[2] & 0x0F][var];
+
+    switch (delayInCycles)
+    {
+        case 10:
+        case 11:
+        {
+            //Hour-Min
+            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+            dispx[3] = &disp1[ReadData[2] >> 4][0];
+            for (var = 0; var < 8; ++var) {
+                tempData[0][var] = disp1[ReadData[2] & 0x0F][var];
+            }
+            tempData[0][1] |= 1;
+            tempData[0][6] |= 1;
+            dispx[2] = (const unsigned char*)&tempData[0][0];
+            shiftCalc = ReadData[1] >> 4;
+            for (var = 0; var < 8; ++var) {
+                tempData[1][var] = disp1[shiftCalc][var];
+            }
+            tempData[1][1] |= 0x80;
+            tempData[1][6] |= 0x80;
+            dispx[1] = (const unsigned char*)&tempData[1][0];
+            dispx[0] = &disp1[ReadData[1] & 0x0F][0];
+
+            dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+              // __delay_cycles(16000000*5);
+
+            break;
+        }
+
+        case 52:
+        case 53:
+            //Seconds
+            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+            dispx[3] = &disp1[ReadData[0] >> 4][0];
+            dispx[2] = &disp1[ReadData[0] & 0x0F][0];
+
+            dotMatrixSendRowWise(dispx, 2, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+              // __delay_cycles(8000000);
+            break;
+
+        case 68:
+        case 69:
+        {
+            //Temperature (Sensor) - I2C Chip
+            // Calculate the temperature from 2's complement
+            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+            unsigned char mock = ReadData[18] >> 6;
+            volatile int helperVar = 0;
+            temp_integer = TW_CalcDecFrmTwozComp(&ReadData[17]);
+            temp_integer += 0.25*TW_CalcDecFrmTwozComp(&mock);
+            temp_integer *= 100.00;
+            helperVar = (int)temp_integer;
+            dispx[3] = &disp1[helperVar/1000][0];
+
+            for (var = 0; var < 8; ++var) {
+                tempData[2][var] = disp1[(helperVar%1000)/100][var];
+            }
+            tempData[2][7] |= 1; // creating the dot
+
+            dispx[2] = (const unsigned char*)&tempData[2][0];
+            dispx[1] = &disp1[(helperVar%100)/10][0];
+            dispx[0] = &disp1[helperVar%10][0];
+
+            dotMatrixSendRowWise(dispx, 2, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+
+            break;
+        }
+        case  84:
+        case  85:
+            //Date
+            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+            dispx[3] = &disp1[36][0];
+            dispx[2] = &disp1[ReadData[4] >> 4][0];
+            dispx[1] = &disp1[ReadData[4] & 0x0F][0];
+            dispx[0] = &disp1[36][0];
+
+            dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+
+            break;
+
+        case   100:
+        case   101:
+            // MONTH //
+            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+            dispx[3] = &disp1[36][0];
+            dispx[2] = &disp1[months[(10*(ReadData[5]>>4)+(ReadData[5]& 0x0F))-(unsigned int)1][0] - (unsigned int)55][0];
+            dispx[1] = &disp1[months[(10*(ReadData[5]>>4)+(ReadData[5]& 0x0F))-(unsigned int)1][1] - (unsigned int)55][0];
+            dispx[0] = &disp1[months[(10*(ReadData[5]>>4)+(ReadData[5]& 0x0F))-(unsigned int)1][2] - (unsigned int)55][0];
+
+            dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+
+            break;
+
+        case  116:
+        case  117:
+            // Day of Week //
+            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+            dispx[3] = &disp1[36][0];
+            dispx[2] = &disp1[dow[(ReadData[3]& 0x0F)-(unsigned int)1][0] - (unsigned int)55][0];
+            dispx[1] = &disp1[dow[(ReadData[3]& 0x0F)-(unsigned int)1][1] - (unsigned int)55][0];
+            dispx[0] = &disp1[dow[(ReadData[3]& 0x0F)-(unsigned int)1][2] - (unsigned int)55][0];
+
+            dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+
+            break;
+
+        case  132:
+        case  133:
+            //Year
+            interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+            dispx[3] = &disp1[2][0];
+            dispx[2] = &disp1[0][0];
+            dispx[1] = &disp1[ReadData[6] >> 4][0];
+            dispx[0] = &disp1[ReadData[6] & 0x0F][0];
+
+            dotMatrixSendRowWise(dispx, 2, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
+
+            break;
+
+        default:
+            break;
     }
-    tempData[0][1] |= 1;
-    tempData[0][6] |= 1;
-    dispx[2] = (const unsigned char*)&tempData[0][0];
-    shiftCalc = ReadData[1] >> 4;
-    for (var = 0; var < 8; ++var) {
-        tempData[1][var] = disp1[shiftCalc][var];
-    }
-    tempData[1][1] |= 0x80;
-    tempData[1][6] |= 0x80;
-    dispx[1] = (const unsigned char*)&tempData[1][0];
-    dispx[0] = &disp1[ReadData[1] & 0x0F][0];
-
-    dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-       __delay_cycles(16000000*5);
-
-    interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-
-    dispx[3] = &disp1[ReadData[0] >> 4][0];
-    dispx[2] = &disp1[ReadData[0] & 0x0F][0];
-
-    dotMatrixSendRowWise(dispx, 2, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-       __delay_cycles(8000000);
-
-    interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-    // Calculate the temperature from 2's complement
-    unsigned char mock = ReadData[18] >> 6;
-    volatile int helperVar = 0;
-    temp_integer = TW_CalcDecFrmTwozComp(&ReadData[17]);
-    temp_integer += 0.25*TW_CalcDecFrmTwozComp(&mock);
-    temp_integer *= 100.00;
-    helperVar = (int)temp_integer;
-    dispx[3] = &disp1[helperVar/1000][0];
-
-    for (var = 0; var < 8; ++var) {
-        tempData[2][var] = disp1[(helperVar%1000)/100][var];
-    }
-    tempData[2][7] |= 1; // creating the dot
-
-    dispx[2] = (const unsigned char*)&tempData[2][0];
-    dispx[1] = &disp1[(helperVar%100)/10][0];
-    dispx[0] = &disp1[helperVar%10][0];
-
-    dotMatrixSendRowWise(dispx, 2, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-    __delay_cycles(8000000);
-
-    interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-
-    dispx[3] = &disp1[36][0];
-    dispx[2] = &disp1[ReadData[4] >> 4][0];
-    dispx[1] = &disp1[ReadData[4] & 0x0F][0];
-    dispx[0] = &disp1[36][0];
-
-    dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-       __delay_cycles(10000000);
-    interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-
-    // MONTH //
-    dispx[3] = &disp1[36][0];
-    dispx[2] = &disp1[months[(10*(ReadData[5]>>4)+(ReadData[5]& 0x0F))-(unsigned int)1][0] - (unsigned int)55][0];
-    dispx[1] = &disp1[months[(10*(ReadData[5]>>4)+(ReadData[5]& 0x0F))-(unsigned int)1][1] - (unsigned int)55][0];
-    dispx[0] = &disp1[months[(10*(ReadData[5]>>4)+(ReadData[5]& 0x0F))-(unsigned int)1][2] - (unsigned int)55][0];
-
-    dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-       __delay_cycles(10000000);
-
-       interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-
-    // Day of Week //
-    dispx[3] = &disp1[36][0];
-    dispx[2] = &disp1[dow[(ReadData[3]& 0x0F)-(unsigned int)1][0] - (unsigned int)55][0];
-    dispx[1] = &disp1[dow[(ReadData[3]& 0x0F)-(unsigned int)1][1] - (unsigned int)55][0];
-    dispx[0] = &disp1[dow[(ReadData[3]& 0x0F)-(unsigned int)1][2] - (unsigned int)55][0];
-
-    dotMatrixSendRowWise(dispx, 4, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-       __delay_cycles(10000000);
-
-       interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
 
 
-    dispx[3] = &disp1[2][0];
-    dispx[2] = &disp1[0][0];
-    dispx[1] = &disp1[ReadData[6] >> 4][0];
-    dispx[0] = &disp1[ReadData[6] & 0x0F][0];
-
-    dotMatrixSendRowWise(dispx, 2, __SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-       __delay_cycles(10000000);
-
-       interDisplayBlanking(__SIMPLE_SCROLL_DOWN__, __SCROLL_FAST__);
-//          }
 
 }
 /**
@@ -151,7 +187,7 @@ int main(void)
         .enableInterrupt = ADC10_ENABLE_INTRPT,
         .sampleHoldTime = ADC10_SHT_64_CYCLES,
         .clockSource = ADC10_CLK_SRC_ADC10CLK,
-
+        .convertDone = 0,
     };
    gDeviceStateMachine DeviceStateMachineControlHandle = ENTRY_STATE;
 //	volatile unsigned char* p;
@@ -171,7 +207,8 @@ int main(void)
 	CalibrateDco(16);
 	BasicInitUSCI(1); // Master mode I2C
 	InitADC10_new(&ADC10_InitTypeDef);
-	_ElapseTimeCCR0_A0(TA0_USE_SMCLK, 8, CONT, 1000, 1,&gFlag);
+	register_adc10_callback(calculate_light_intensity);
+	_ElapseTimeCCR0_A0(TA0_USE_SMCLK, _DIV_CLK_BY_8, CONT, 25000, 4,&gFlag);//This setting assumes 16mhz clock/8=2mhz=0.5uS*50000=25mS every interrupt.So 4 overflows=100mS
 
 
 
@@ -180,9 +217,8 @@ int main(void)
 
 	initSend_MAX7219(MatrixSetup,sizeof(MatrixSetup));
 
-//	  while(1) {
-//	        controlConversion(ADC10_START_CONVERSION);
-//	    }
+    volatile uint_fast16_t   secondCountInLoops = 0;
+
 	while(1) {
 	    /*
 	     * The entire functionality has been divided into some states:
@@ -205,32 +241,47 @@ int main(void)
 	     * can be from any state
 	     *
 	     */
+
 	    if(gFlag) {
 	        switch (DeviceStateMachineControlHandle) {
                 case ENTRY_STATE:
-                    controlConversion(ADC10_START_CONVERSION);
+                    //controlConversion(ADC10_START_CONVERSION);
                     DeviceStateMachineControlHandle = SENSE_AMB_LGHT_STATE;
                     break;
                 case SENSE_AMB_LGHT_STATE:
-                    controlConversion(ADC10_START_CONVERSION);
-                    gAmbientLux = calculate_light_intensity(gAdcRawVal);
-                    gAmbientLux /= 64; // 64 used as the func: calculate_light_intensity returns value from 5 - 1000 in 16 stepps.
-                                       //But for MAX7219 we need only 16 steps with 0x0A
-                    gAmbientLux += 2560;
-                    initSend_MAX7219((unsigned short*)&gAmbientLux,1);
-//                    sendData((unsigned short int*)&gAmbientLux, 1);
-//                    sendData((unsigned short int*)&gAmbientLux, 2);
-//                    sendData((unsigned short int*)&gAmbientLux, 3);
-//                    sendData((unsigned short int*)&gAmbientLux, 4);
+                    if(ADC10_InitTypeDef.convertDone == 0)
+                    {
+                        controlConversion(ADC10_START_CONVERSION);
+                    }
+                    if(ADC10_InitTypeDef.convertDone == 2)
+                    {
+                        // Smoothen out ADC Value by simple averaging
+                        gAdcValAverager += (float)gAmbientLux;
+                        if(++gAdcValAverager_count > __NUM_OF_LDR_READS_TO_AVG__)
+                        {
+                            gAdcValAverager_count = 0;
+                            gAdcValAverager /= __NUM_OF_LDR_READS_TO_AVG__;
+                            gAmbientLux = (int)gAdcValAverager;
+                            //calculate_light_intensity(gAdcRawVal,&gAmbientLux);
+                            gAmbientLux /= 64; // 64 used as the func: calculate_light_intensity returns value from 5 - 1000 in 16 stepps.
+                            //But for MAX7219 we need only 16 steps with 0x0A
+                            gAmbientLux += 2560;// 0x0Ayy = 2560 + yy
+                            initSend_MAX7219((unsigned short*)&gAmbientLux,1);
+                        }
+
+                        ADC10_InitTypeDef.convertDone = 0;
+                    }
+
                     DeviceStateMachineControlHandle = CLOCK_TEMP_DISPLAY_STATE;
                     break;
                 case CLOCK_TEMP_DISPLAY_STATE:
-                    ClockTempDisplay();
+                    ClockTempDisplay(secondCountInLoops);
                     DeviceStateMachineControlHandle = SENSE_AMB_LGHT_STATE;
                     break;
                 default:
                     break;
             }
+	        if(++secondCountInLoops > 133) secondCountInLoops = 0;
 	    }
 	    gFlag = 0; // Clear for next hit
 	    __bis_SR_register(LPM0_bits + GIE);
