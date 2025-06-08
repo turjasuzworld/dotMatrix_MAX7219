@@ -4,8 +4,12 @@
 #include <TW_I2C.h>
 #include <TW_ADC10.h>
 #include <TW_TimerA_v2.h>
+#include <TW_MSP430G2xx_ESP_lite.h>
 
 #define     __NUM_OF_LDR_READS_TO_AVG__     (20)        // 20 reads/ sec. So 3 sec will have 60 reads// Adjust accordingly
+//#define     _ESP01_MODULE_INSTALLED_
+#define     _configure_EN_and_RST_Pins_For_ESP01  P2SEL &= ~(BIT6 | BIT7)
+#define     _setRstEnPortDir                      P2DIR |= (BIT6 | BIT7)
 
 typedef enum    {
     ENTRY_STATE,
@@ -22,6 +26,7 @@ unsigned char SetRtcData[7] = {0x00, 0x48, 0x18, 0x04, 0x22, 0x05, 0x25};//ss mm
 const   unsigned  char  dow[7][3] = {"MON","TUE","WED","THU","FRI","SAT","SUN"};
 const   unsigned  char  months[12][3] = {"JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"};
 volatile unsigned char tempData[3][8];
+char    systemIP[16] = "123.456.789.012";
 static uint8_t gFlag = 0;
 float gAdcValAverager;
 uint8_t gAdcValAverager_count;
@@ -189,21 +194,35 @@ int main(void)
         .clockSource = ADC10_CLK_SRC_ADC10CLK,
         .convertDone = 0,
     };
+   struct configEspPort_USCI    ESP_InitTypeDef = {
+        .ESP_PSEL = &P1SEL,
+        .ESP_PSEL2 = &P1SEL2,
+        .ESP_EN_PDIR = &P2DIR,
+        .ESP_RST_PDIR = &P2DIR,
+        .ESP_EN_POUT = &P2OUT,
+        .ESP_RST_POUT = &P2OUT,
+        .ESP_comm_baudRate = 115200,
+        .systemFreq = 16000000,
+        .ESP_RX_PIN = BIT1,
+        .ESP_TX_PIN = BIT2,
+        .interrupt_enabled = true,
+        ._MdmIPAddr = systemIP,
+
+   };
    gDeviceStateMachine DeviceStateMachineControlHandle = ENTRY_STATE;
-//	volatile unsigned char* p;
-//	p = (volatile unsigned char*)0x22;//P1DIR
-//	*p = 0x01;
-//	p = (volatile unsigned char*)0x21;
-//	*p = 0x01;
-//	*p &= ~0x01;
-	//P1OUT &= ~(BIT3 + BIT4);
-	//P1DIR |= BIT3 + BIT4;
+
 	_setClockPortDir;
 	_setDataPortDir;
 	_resetDisplaySelectPortOut;
 	_setDisplaySelectPortDir;
-//	P2OUT &= ~(BIT0 + BIT1 + BIT2 + BIT3);
-//	P2DIR |= (BIT0 + BIT1 + BIT2 + BIT3);
+
+	//For ESP01
+#ifdef  _ESP01_MODULE_INSTALLED_
+	_configure_EN_and_RST_Pins_For_ESP01;
+	_setRstEnPortDir;
+	P2OUT |= (BIT6 + BIT7);
+#endif
+
 	CalibrateDco(16);
 	BasicInitUSCI(1); // Master mode I2C
 	InitADC10_new(&ADC10_InitTypeDef);
@@ -264,7 +283,7 @@ int main(void)
                             gAmbientLux = (int)gAdcValAverager;
                             //calculate_light_intensity(gAdcRawVal,&gAmbientLux);
                             gAmbientLux /= 64; // 64 used as the func: calculate_light_intensity returns value from 5 - 1000 in 16 stepps.
-                            //But for MAX7219 we need only 16 steps with 0x0A
+                                                //But for MAX7219 we need only 16 steps with 0x0A
                             gAmbientLux += 2560;// 0x0Ayy = 2560 + yy
                             initSend_MAX7219((unsigned short*)&gAmbientLux,1);
                         }
