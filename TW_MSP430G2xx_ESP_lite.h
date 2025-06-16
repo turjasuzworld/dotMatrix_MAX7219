@@ -21,6 +21,9 @@
 #define                 WifiCred_SSID                 "Hel Secure"
 #define                 WifiCred_Pwd                  "helsite987"
 
+#define                 _BAUD_115200_                   1
+#define                 _BAUD_9600_                     2
+
 #define                 TurnOnImmediately               1
 #define                 TurnOnAfter1Sec                 2
 #define                 TurnOff                         3
@@ -39,50 +42,16 @@
 #define                 _ESP_UART_TX                  BIT2
 
 
-#define                 _bufferMax                       130
+#define                 _bufferMax                       256
 
 #define                 _espRxDataParsingReqd            false
-
-/*
- * Variables
- */
-//Global pointers to the registers of USCI
-struct      configEspPort_USCI  {
-            volatile            unsigned char*      ESP_PSEL;
-            volatile            unsigned char*      ESP_PSEL2;
-            volatile            unsigned char*      ESP_EN_PDIR;
-            volatile            unsigned char*      ESP_EN_POUT;
-            volatile            unsigned char*      ESP_RST_PDIR;
-            volatile            unsigned char*      ESP_RST_POUT;
-            const               unsigned short      ESP_RX_PIN;
-            const               unsigned short      ESP_TX_PIN;
-            const               unsigned short      ESP_EN_PIN;
-            const               unsigned short      ESP_RST_PIN;
-            const               uint32_t             systemFreq;
-            const               uint32_t             ESP_comm_baudRate;
-            const               bool                interrupt_enabled;
-            char*               _MdmIPAddr;
-};
 
 
 //extern      volatile            unsigned char                                   _MdmBuffer[_bufferMax],
 //                                                                                _MdmStatus[80],        // Global MBuffer to store the modem replies. Define in your required C/CPP files/classes
 //                                                                                _MdmHTTPBuff[_bufferMax],     //HTTP Get Buffer
 //                                                                                _MdmIPAddr[16];
-extern                          unsigned char                                   _APpassword[30],
-                                                                                _APname[30];
 extern     volatile             unsigned int                                    _MdmBuffCnt;
-
-extern                          uint8_t                                         _devIP_Address[16];
-
-extern                          const   char                                    _AT_reply[];
-extern                          const   char                                    _AT_CWMODE_CUR_reply[];
-extern                          const   char                                    _AT_CWJAP_CUR_reply[];
-extern                          const   char                                    _AT_CIFSR_reply[];
-extern                          const   char                                    _AT_PING_reply[];
-extern                          const   char                                    _AT_CIPSTART_reply[];
-extern                          const   char                                    _AT_CIPSEND_reply[];
-extern                          const   char                                    _AT_CIPCLOSE_reply[];
 
 /*
  *  Enums
@@ -108,6 +77,7 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
         _E8266_PWR_UP,
         _E8266_PWR_UP_SUCCESS,
         _E8266_PWR_DN,
+        _E8266_PWR_RST,
         _E8266_UNKNOWN_FAILURE,
         _E8266_RST_SUCCESS,
         _E8266_RST_FAIL,
@@ -158,6 +128,33 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
 
 } esp8266StateMachines;
 
+/*
+ * Variables
+ */
+//Global pointers to the registers of USCI
+struct      configEspPort_USCI  {
+            volatile            unsigned char*      ESP_EN_PSEL;
+            volatile            unsigned char*      ESP_RST_PSEL;
+            volatile            unsigned char*      ESP_PSEL;
+            volatile            unsigned char*      ESP_PSEL2;
+            volatile            unsigned char*      ESP_EN_PDIR;
+            volatile            unsigned char*      ESP_EN_POUT;
+            volatile            unsigned char*      ESP_RST_PDIR;
+            volatile            unsigned char*      ESP_RST_POUT;
+            const               unsigned short      ESP_RX_PIN;
+            const               unsigned short      ESP_TX_PIN;
+            const               unsigned short      ESP_EN_PIN;
+            const               unsigned short      ESP_RST_PIN;
+            const               uint32_t             systemFreq;
+            const               uint32_t             ESP_comm_baudRate;
+            const               bool                _interrupt_enabled;
+            char*               _MdmIPAddr;
+                                esp8266StateMachines currentState;
+                                esp8266StateMachines requestedState;
+
+};
+
+
 
 /*
  *  Source functions required for the control and communications
@@ -166,7 +163,7 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
 
 extern                      esp8266StateMachines resetESP8266(void);          // generates a reset to the esp device
 extern                      esp8266StateMachines moduleInitDiag(esp8266StateMachines);
-extern                      uint8_t             ConfigureEspUART(long unsigned int baudrate, uint8_t interrupt_polling);
+extern                      uint8_t ConfigureEspUART(struct configEspPort_USCI* );
 extern                      void                SendDataToESP(const uint8_t* data);
 extern                      void                SendCharToESP(unsigned char);
 

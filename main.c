@@ -195,6 +195,8 @@ int main(void)
         .convertDone = 0,
     };
    struct configEspPort_USCI    ESP_InitTypeDef = {
+        .ESP_EN_PSEL = &P2SEL,
+        .ESP_RST_PSEL = &P2SEL,
         .ESP_PSEL = &P1SEL,
         .ESP_PSEL2 = &P1SEL2,
         .ESP_EN_PDIR = &P2DIR,
@@ -205,8 +207,12 @@ int main(void)
         .systemFreq = 16000000,
         .ESP_RX_PIN = BIT1,
         .ESP_TX_PIN = BIT2,
-        .interrupt_enabled = true,
+        .ESP_EN_PIN = BIT6,
+        .ESP_RST_PIN = BIT7,
+        ._interrupt_enabled = true,
         ._MdmIPAddr = systemIP,
+        .currentState = _UNKNOWN,
+        .requestedState = _E8266_PWR_UP,
 
    };
    gDeviceStateMachine DeviceStateMachineControlHandle = ENTRY_STATE;
@@ -216,12 +222,6 @@ int main(void)
 	_resetDisplaySelectPortOut;
 	_setDisplaySelectPortDir;
 
-	//For ESP01
-#ifdef  _ESP01_MODULE_INSTALLED_
-	_configure_EN_and_RST_Pins_For_ESP01;
-	_setRstEnPortDir;
-	P2OUT |= (BIT6 + BIT7);
-#endif
 
 	CalibrateDco(16);
 	BasicInitUSCI(1); // Master mode I2C
@@ -229,12 +229,51 @@ int main(void)
 	register_adc10_callback(calculate_light_intensity);
 	_ElapseTimeCCR0_A0(TA0_USE_SMCLK, _DIV_CLK_BY_8, CONT, 25000, 4,&gFlag);//This setting assumes 16mhz clock/8=2mhz=0.5uS*50000=25mS every interrupt.So 4 overflows=100mS
 
+    initSend_MAX7219(MatrixSetup,sizeof(MatrixSetup));
 
+	ConfigureEspUART(&ESP_InitTypeDef);
+     __bis_SR_register(GIE);
+     //For ESP01
+#ifdef  _ESP01_MODULE_INSTALLED_
+     _configure_EN_and_RST_Pins_For_ESP01;
+     _setRstEnPortDir;
+     P2OUT |= (BIT6 + BIT7);
+
+     //while(1) P2OUT ^= BIT6 + BIT7;
+#endif
+    __delay_cycles(80000000);
+    SendDataToESP("AT\r\n");
+    __delay_cycles(80000000);
+    SendDataToESP("AT+CWMODE=2\r\n");
+    __delay_cycles(80000000);
+    SendDataToESP("AT+CWSAP=\"BRANON_V6\",\"1234567890\",6,3\r\n");
+    __delay_cycles(80000000);
+//    SendDataToESP("AT+CWJAP=\"Hel Secure\",\"helsite987\"\r\n");
+//    __delay_cycles(80000000);
+//    SendDataToESP("AT+CIFSR\r\n");
+//    __delay_cycles(80000000);
+//    __delay_cycles(80000000);
+    SendDataToESP("AT+CIPMUX=1\r\n");
+    __delay_cycles(80000000);
+    SendDataToESP("AT+CIPSERVER=1,8989\r\n");// default port 333
+    __delay_cycles(80000000);
+//    SendDataToESP("AT+CIPSTART=4,\"UDP\",\"192.168.137.1\",8989,8989,0\r\n");//AT+CIPSTART=<"type">,<"remote host">,<remote port>[,<local port>,<mode>,<"local IP">]
+//    __delay_cycles(80000000);
+    SendDataToESP("AT+CIPSEND=0,10\r\n");
+    __delay_cycles(80000000);
+    SendDataToESP("1234567890");
+    __delay_cycles(80000000);
+//    while(1){
+//        SendDataToESP("AT+CIPSEND=0,12\r\n");
+//        __delay_cycles(32000000);
+//        SendDataToESP("Enjoy Life \n");
+//        __delay_cycles(80000000);
+//    }
 
 //	I2CSLV_Save_Burst(0x68, 0, SetRtcData, 7);
 //	while(1);
 
-	initSend_MAX7219(MatrixSetup,sizeof(MatrixSetup));
+
 
     volatile uint_fast16_t   secondCountInLoops = 0;
 
