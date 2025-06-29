@@ -30,10 +30,30 @@ char    systemIP[16] = "123.456.789.012";
 static uint8_t gFlag = 0;
 float gAdcValAverager;
 uint8_t gAdcValAverager_count;
+bool    pEspParsePatternFound = NULL;
 
 /*
  * Other Fxns..
  */
+char*  find_pattern_in_buff(char* buff, uint8_t buffLen, const char* pattern)
+{
+    uint8_t pattern_len = 0;
+    int i;
+    pattern_len = strlen(pattern);
+    if((pattern_len == 0)||(buffLen < pattern_len))
+    {
+        return NULL;
+    }
+    for(i=0; i <= buffLen-pattern_len; ++i)
+    {
+        if(memcmp(&buff[i], pattern, pattern_len)==0)
+        {
+            return &buff[i];
+        }
+    }
+    return NULL;
+}
+
 void initSend_MAX7219(unsigned short* ptrToMax7219InitMatrix, uint_fast8_t size) {
     int var = 0, dispCtr;
     while (var < size) {
@@ -211,11 +231,13 @@ int main(void)
         .ESP_RST_PIN = BIT7,
         ._interrupt_enabled = true,
         ._MdmIPAddr = systemIP,
-        .currentState = _UNKNOWN,
-        .requestedState = _E8266_PWR_UP,
+        ._cbStringPatternFound = &pEspParsePatternFound,
+        .pEspBuff = &_MdmBuffer[0],
+        .pESPBuffParsedData = &_MdmCbDataParsed[0],
 
    };
-   gDeviceStateMachine DeviceStateMachineControlHandle = ENTRY_STATE;
+   volatile gDeviceStateMachine DeviceStateMachineControlHandle = ENTRY_STATE;
+   volatile uint8_t configEspRplyCode = 127, espInitRetry = 3; // 127 = error, 0 = ok, 255 = pw dn
 
 	_setClockPortDir;
 	_setDataPortDir;
@@ -227,12 +249,35 @@ int main(void)
 	BasicInitUSCI(1); // Master mode I2C
 	InitADC10_new(&ADC10_InitTypeDef);
 	register_adc10_callback(calculate_light_intensity);
+	register_esp01_callback(parseEsp01_TCP_Client_Reply);
 	_ElapseTimeCCR0_A0(TA0_USE_SMCLK, _DIV_CLK_BY_8, CONT, 25000, 4,&gFlag);//This setting assumes 16mhz clock/8=2mhz=0.5uS*50000=25mS every interrupt.So 4 overflows=100mS
 
     initSend_MAX7219(MatrixSetup,sizeof(MatrixSetup));
+    __bis_SR_register(GIE);
 
-	ConfigureEspUART(&ESP_InitTypeDef);
-     __bis_SR_register(GIE);
+    /*
+     * Setup ESP-01 as the TCP Server
+     * With AP: BRANON_V6, Pass: 1234567890
+     */
+    while((configEspRplyCode > 0)&&(espInitRetry > 0)) {
+        ESP_InitTypeDef.currentState = _UNKNOWN;
+        ESP_InitTypeDef.requestedState = _E8266_PWR_UP;
+        configEspRplyCode = ConfigureEspUART(&ESP_InitTypeDef);
+        espInitRetry--;
+    }
+    SendDataToESP("AT+CWMODE=2\r\n");
+    __delay_cycles(80000000);
+    SendDataToESP("AT+CWSAP=\"BRANON_V6\",\"1234567890\",6,3\r\n");
+    __delay_cycles(80000000);
+    SendDataToESP("AT+CIPMUX=1\r\n");
+    __delay_cycles(80000000);
+    SendDataToESP("AT+CIPSERVER=1,8989\r\n");// default port 333
+    __delay_cycles(80000000);
+    SendDataToESP("");// Just calls function clearbuff and resets the buffer pointer
+//    SendDataToESP("AT+CIPSEND=0,45\r\n");
+//    __delay_cycles(80000000);
+//    SendDataToESP("You're Connected to BRANON_V6 Over TCP: 8989\n");
+//    __delay_cycles(80000000);
      //For ESP01
 #ifdef  _ESP01_MODULE_INSTALLED_
      _configure_EN_and_RST_Pins_For_ESP01;
@@ -241,28 +286,19 @@ int main(void)
 
      //while(1) P2OUT ^= BIT6 + BIT7;
 #endif
-    __delay_cycles(80000000);
-    SendDataToESP("AT\r\n");
-    __delay_cycles(80000000);
-    SendDataToESP("AT+CWMODE=2\r\n");
-    __delay_cycles(80000000);
-    SendDataToESP("AT+CWSAP=\"BRANON_V6\",\"1234567890\",6,3\r\n");
-    __delay_cycles(80000000);
+//    __delay_cycles(80000000);
+//    SendDataToESP("AT\r\n");
+//    __delay_cycles(80000000);
+
 //    SendDataToESP("AT+CWJAP=\"Hel Secure\",\"helsite987\"\r\n");
 //    __delay_cycles(80000000);
 //    SendDataToESP("AT+CIFSR\r\n");
 //    __delay_cycles(80000000);
 //    __delay_cycles(80000000);
-    SendDataToESP("AT+CIPMUX=1\r\n");
-    __delay_cycles(80000000);
-    SendDataToESP("AT+CIPSERVER=1,8989\r\n");// default port 333
-    __delay_cycles(80000000);
+
 //    SendDataToESP("AT+CIPSTART=4,\"UDP\",\"192.168.137.1\",8989,8989,0\r\n");//AT+CIPSTART=<"type">,<"remote host">,<remote port>[,<local port>,<mode>,<"local IP">]
 //    __delay_cycles(80000000);
-    SendDataToESP("AT+CIPSEND=0,10\r\n");
-    __delay_cycles(80000000);
-    SendDataToESP("1234567890");
-    __delay_cycles(80000000);
+
 //    while(1){
 //        SendDataToESP("AT+CIPSEND=0,12\r\n");
 //        __delay_cycles(32000000);
@@ -276,6 +312,7 @@ int main(void)
 
 
     volatile uint_fast16_t   secondCountInLoops = 0;
+
 
 	while(1) {
 	    /*
@@ -299,46 +336,61 @@ int main(void)
 	     * can be from any state
 	     *
 	     */
+	    __bis_SR_register(GIE);
+	    unsigned char* pFoundParse = NULL;
+	    pFoundParse = find_pattern_in_buff(ESP_InitTypeDef.pEspBuff, 150, "+IPD");
+	    if(NULL != pFoundParse)
+	    {
+	        __no_operation();
+	        pFoundParse += 10;
+	        strncpy(ESP_InitTypeDef.pESPBuffParsedData, pFoundParse, 20);
+	        SendDataToESP("");
 
-	    if(gFlag) {
+	    }
+//	    if(strstr("+IPD", ))
+//	    {
+//	        __no_operation();
+//	    }
+	    if(gFlag)
+	    {
 	        switch (DeviceStateMachineControlHandle) {
-                case ENTRY_STATE:
-                    //controlConversion(ADC10_START_CONVERSION);
-                    DeviceStateMachineControlHandle = SENSE_AMB_LGHT_STATE;
-                    break;
-                case SENSE_AMB_LGHT_STATE:
-                    if(ADC10_InitTypeDef.convertDone == 0)
-                    {
-                        controlConversion(ADC10_START_CONVERSION);
-                    }
-                    if(ADC10_InitTypeDef.convertDone == 2)
-                    {
-                        // Smoothen out ADC Value by simple averaging
-                        gAdcValAverager += (float)gAmbientLux;
-                        if(++gAdcValAverager_count > __NUM_OF_LDR_READS_TO_AVG__)
-                        {
-                            gAdcValAverager_count = 0;
-                            gAdcValAverager /= __NUM_OF_LDR_READS_TO_AVG__;
-                            gAmbientLux = (int)gAdcValAverager;
-                            //calculate_light_intensity(gAdcRawVal,&gAmbientLux);
-                            gAmbientLux /= 64; // 64 used as the func: calculate_light_intensity returns value from 5 - 1000 in 16 stepps.
-                                                //But for MAX7219 we need only 16 steps with 0x0A
-                            gAmbientLux += 2560;// 0x0Ayy = 2560 + yy
-                            initSend_MAX7219((unsigned short*)&gAmbientLux,1);
-                        }
+	        case ENTRY_STATE:
+	            //controlConversion(ADC10_START_CONVERSION);
+	            DeviceStateMachineControlHandle = SENSE_AMB_LGHT_STATE;
+	            break;
+	        case SENSE_AMB_LGHT_STATE:
+	            if(ADC10_InitTypeDef.convertDone == 0)
+	            {
+	                controlConversion(ADC10_START_CONVERSION);
+	            }
+	            if(ADC10_InitTypeDef.convertDone == 2)
+	            {
+	                // Smoothen out ADC Value by simple averaging
+	                gAdcValAverager += (float)gAmbientLux;
+	                if(++gAdcValAverager_count > __NUM_OF_LDR_READS_TO_AVG__)
+	                {
+	                    gAdcValAverager_count = 0;
+	                    gAdcValAverager /= __NUM_OF_LDR_READS_TO_AVG__;
+	                    gAmbientLux = (int)gAdcValAverager;
+	                    //calculate_light_intensity(gAdcRawVal,&gAmbientLux);
+	                    gAmbientLux /= 64; // 64 used as the func: calculate_light_intensity returns value from 5 - 1000 in 16 stepps.
+	                    //But for MAX7219 we need only 16 steps with 0x0A
+	                    gAmbientLux += 2560;// 0x0Ayy = 2560 + yy
+	                    initSend_MAX7219((unsigned short*)&gAmbientLux,1);
+	                }
 
-                        ADC10_InitTypeDef.convertDone = 0;
-                    }
+	                ADC10_InitTypeDef.convertDone = 0;
+	            }
 
-                    DeviceStateMachineControlHandle = CLOCK_TEMP_DISPLAY_STATE;
-                    break;
-                case CLOCK_TEMP_DISPLAY_STATE:
-                    ClockTempDisplay(secondCountInLoops);
-                    DeviceStateMachineControlHandle = SENSE_AMB_LGHT_STATE;
-                    break;
-                default:
-                    break;
-            }
+	            DeviceStateMachineControlHandle = CLOCK_TEMP_DISPLAY_STATE;
+	            break;
+	        case CLOCK_TEMP_DISPLAY_STATE:
+	            ClockTempDisplay(secondCountInLoops);
+	            DeviceStateMachineControlHandle = SENSE_AMB_LGHT_STATE;
+	            break;
+	        default:
+	            break;
+	        }
 	        if(++secondCountInLoops > 133) secondCountInLoops = 0;
 	    }
 	    gFlag = 0; // Clear for next hit

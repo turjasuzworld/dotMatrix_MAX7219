@@ -1,0 +1,9 @@
+"./TW_ADC10.obj"
+"./TW_I2C.obj"
+"./TW_MAX7219_DotMatrix.obj"
+"./TW_MSP430G2xx_ESP_lite.obj"
+"./TW_TimerA_v2.obj"
+"./TW_m430g2553_MiscApps.obj"
+"./main.obj"
+"../lnk_msp430g2553.cmd"
+-llibc.a

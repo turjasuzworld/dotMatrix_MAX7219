@@ -18,7 +18,7 @@
 volatile    int                     gComputedLux = 0;
 volatile    uint_fast8_t*            adcIntrptSts = 0;
 
-void (*adc10_callback)(uint16_t adc10RawVal, int* pComputedLuxVar) = 0;
+void (*adc10_callback)(uint16_t , int* ) = 0;
 
 //Function to register the callback:
 void register_adc10_callback(void (*callback)(uint16_t,int*)) {

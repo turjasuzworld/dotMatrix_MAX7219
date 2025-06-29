@@ -20,6 +20,7 @@
  */
 #define                 WifiCred_SSID                 "Hel Secure"
 #define                 WifiCred_Pwd                  "helsite987"
+//#define                 ESP_UART_CB_NEEDED
 
 #define                 _BAUD_115200_                   1
 #define                 _BAUD_9600_                     2
@@ -42,8 +43,8 @@
 #define                 _ESP_UART_TX                  BIT2
 
 
-#define                 _bufferMax                       256
-
+#define                 _bufferMax                       150
+#define                 _parseBufferMax                  50
 #define                 _espRxDataParsingReqd            false
 
 
@@ -51,7 +52,9 @@
 //                                                                                _MdmStatus[80],        // Global MBuffer to store the modem replies. Define in your required C/CPP files/classes
 //                                                                                _MdmHTTPBuff[_bufferMax],     //HTTP Get Buffer
 //                                                                                _MdmIPAddr[16];
+           volatile             unsigned char                                   _MdmBuffer[_bufferMax];
 extern     volatile             unsigned int                                    _MdmBuffCnt;
+extern                          uint8_t                                         _MdmCbDataParsed[_parseBufferMax];
 
 /*
  *  Enums
@@ -148,6 +151,9 @@ struct      configEspPort_USCI  {
             const               uint32_t             systemFreq;
             const               uint32_t             ESP_comm_baudRate;
             const               bool                _interrupt_enabled;
+                                bool*                _cbStringPatternFound;
+                                unsigned char*      pEspBuff;
+                                unsigned char*      pESPBuffParsedData;
             char*               _MdmIPAddr;
                                 esp8266StateMachines currentState;
                                 esp8266StateMachines requestedState;
@@ -161,24 +167,25 @@ struct      configEspPort_USCI  {
  *  using ESP8266
  */
 
-extern                      esp8266StateMachines resetESP8266(void);          // generates a reset to the esp device
-extern                      esp8266StateMachines moduleInitDiag(esp8266StateMachines);
+//extern                      esp8266StateMachines resetESP8266(void);          // generates a reset to the esp device
+//extern                      esp8266StateMachines moduleInitDiag(esp8266StateMachines);
 extern                      uint8_t ConfigureEspUART(struct configEspPort_USCI* );
 extern                      void                SendDataToESP(const uint8_t* data);
 extern                      void                SendCharToESP(unsigned char);
 
-extern                      esp8266StateMachines ESP_PinSetup(void);
-extern                      esp8266StateMachines ESP_ON_OFF(uint8_t);
+//extern                      esp8266StateMachines ESP_PinSetup(void);
+//extern                      esp8266StateMachines ESP_ON_OFF(uint8_t);
 
-extern                      void                DeEchoShrtRsp(void);
-extern                      esp8266StateMachines    ESPInitAndDiag(void);       // Implements StateMachine for the init and diag for M95
-extern                      esp8266StateMachines    MdmMakeReady(espOperCommand , esp8266StateMachines, char*, char*);
-extern                      void                ParseCallback(void (*ptr)());
-extern                      esp8266StateMachines ReadEspRSSI(unsigned char*);
-extern                      int                 ReadIPAddr(void);
-extern                      void                ClrEspBuff(void);
-extern                      esp8266StateMachines espConnectWiFi(void);
-extern                      esp8266StateMachines espReadFromServer(esp8266StateMachines);
+//extern                      void                DeEchoShrtRsp(void);
+//extern                      esp8266StateMachines    ESPInitAndDiag(void);       // Implements StateMachine for the init and diag for M95
+//extern                      esp8266StateMachines    MdmMakeReady(espOperCommand , esp8266StateMachines, char*, char*);
+//extern                      void                ParseCallback(void (*ptr)());
+//extern                      esp8266StateMachines ReadEspRSSI(unsigned char*);
+//extern                      int                 ReadIPAddr(void);
+//extern                      void                ClrEspBuff(void);
+//extern                      esp8266StateMachines espConnectWiFi(void);
+//extern                      esp8266StateMachines espReadFromServer(esp8266StateMachines);
 
-
+extern                      void     register_esp01_callback(void (*callback)(uint8_t*,uint8_t*)); // first is the string to search in reply, second is buffer to parsed data
+extern                      void    parseEsp01_TCP_Client_Reply(uint8_t* , uint8_t* );
 #endif /* TW_MSP430G2XX_ESP_LITE_H_ */
