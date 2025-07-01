@@ -270,6 +270,170 @@ uint8_t ConfigureEspUART(struct configEspPort_USCI* espCfg)
      else if ((espCfg->currentState == _E8266_UNKNOWN_FAILURE)&&(espCfg->requestedState == _UNKNOWN)) return 127;
 }
 
+/*
+ * Setup the ESP01 as TCP Server
+ * using the AT commands. TCP/IP stack managed by ESP01
+ */
+void                enable_Esp_TCP_Server(struct configEspPort_USCI* pEspStateMachine)
+{
+    int resendCtr = 0;
+    char* reply = NULL;
+    if ((pEspStateMachine->currentState == _E8266_PWR_UP_SUCCESS)&&(pEspStateMachine->requestedState ==_E8266_TCP_SERVER_MULTICONNECT ))
+    {
+        resendCtr = 3;
+        do {
+            SendDataToESP("AT+CWMODE=2\r\n");
+            reply = mdmReplySearch((const char*)_MdmBuffer, "AT+CWMODE=2\r\n\r\nOK\r\n", 10);
+            resendCtr--;
+            if ((resendCtr == 0)&&( NULL == reply )) {
+                pEspStateMachine->currentState = _E8266_TCP_SERVER_MULTICONNECT_FAIL;
+                return;
+            }
+//          This Part may be implemented in a higher memory footprint MCU
+//            if ( 'A' == *reply ){
+//
+//            }
+        } while (( NULL == reply )&&(resendCtr > 0));
+
+
+
+
+        resendCtr = 3;
+        do {
+            // AT+CWSAP can't be full verified in small mem footprint MCU, needs str concat, can be used in larger MCU
+            SendDataToESP("AT+CWSAP=\"");
+            SendDataToESP(pEspStateMachine->pESP_AP_SSID);
+            SendDataToESP("\",\"");
+            SendDataToESP(pEspStateMachine->pESP_AP_PWD);
+            SendDataToESP("\",6,3\r\n");
+            reply = mdmReplySearch((const char*)_MdmBuffer, "OK\r\n", 10);
+            resendCtr--;
+            if ((resendCtr == 0)&&( NULL == reply )) {
+                pEspStateMachine->currentState = _E8266_TCP_SERVER_MULTICONNECT_FAIL;
+                return;
+            }
+//          This Part may be implemented in a higher memory footprint MCU
+//            if ( 'A' == *reply ){
+//
+//            }
+        } while (( NULL == reply )&&(resendCtr > 0));
+
+        resendCtr = 3;
+        do {
+            SendDataToESP("AT+CIPMUX=1\r\n");
+            reply = mdmReplySearch((const char*)_MdmBuffer, "AT+CIPMUX=1\r\n\r\nOK\r\n", 10);
+            resendCtr--;
+            if ((resendCtr == 0)&&( NULL == reply )) {
+                pEspStateMachine->currentState = _E8266_TCP_SERVER_MULTICONNECT_FAIL;
+                return;
+            }
+//          This Part may be implemented in a higher memory footprint MCU
+//            if ( 'A' == *reply ){
+//
+//            }
+        } while (( NULL == reply )&&(resendCtr > 0));
+
+
+        resendCtr = 3;
+        do {
+            // AT+CIPSERVER can't be full verified in small mem footprint MCU, needs str concat, can be used in larger MCU
+            SendDataToESP("AT+CIPSERVER=1,");// default port 333"
+            SendDataToESP(pEspStateMachine->pESP_AP_PORT);
+            SendDataToESP("\r\n");
+            reply = mdmReplySearch((const char*)_MdmBuffer, "OK\r\n", 10);
+            resendCtr--;
+            if ((resendCtr == 0)&&( NULL == reply )) {
+                pEspStateMachine->currentState = _E8266_TCP_SERVER_MULTICONNECT_FAIL;
+                return;
+            }
+//          This Part may be implemented in a higher memory footprint MCU
+//            if ( 'A' == *reply ){
+//
+//            }
+        } while (( NULL == reply )&&(resendCtr > 0));
+
+        pEspStateMachine->currentState = _E8266_TCP_SERVER_MULTICONNECT_SUCCESS;
+
+        FlushEspBuff(150);// Just calls function clearbuff and resets the buffer pointer
+    }
+}
+
+/*
+ * Searches for a non-string / null-ended string pattern in a buffer,
+ * if found returns a pointer to it, else returns NULL
+ */
+char*  find_pattern_in_buff(char* buff, uint8_t buffLen, const char* pattern)
+{
+    uint8_t pattern_len = 0;
+    int i;
+    pattern_len = strlen(pattern);
+    if((pattern_len == 0)||(buffLen < pattern_len))
+    {
+        return NULL;
+    }
+    for(i=0; i <= buffLen-pattern_len; ++i)
+    {
+        if(memcmp(&buff[i], pattern, pattern_len)==0)
+        {
+            return &buff[i];
+        }
+    }
+    return NULL;
+}
+
+/*
+ * Check ESP01 allocated buffer with the expected header +IPD / other format
+ * and if found it will parse and store the data in the buffer pointed bt the
+ * structure pointer ESP_InitTypeDef.pEspBuff
+ */
+//void    check_ESP_Buff_for_TCP_client_data(struct configEspPort_USCI* pEspObj)
+//{
+//    if ((pEspObj)&&(pEspObj->currentState == _E8266_TCP_SERVER_MULTICONNECT_SUCCESS))
+//        {
+//            unsigned char* pFoundParse = NULL;
+//            pFoundParse = find_pattern_in_buff(pEspObj->pEspBuff, 150, "+IPD");
+//            if(NULL != pFoundParse)
+//            {
+//                __no_operation();
+//                pFoundParse += 10;
+//                strncpy(pEspObj->pESPBuffParsedData, pFoundParse, 20);
+//                SendDataToESP("AT+CIPSEND=0,33\r\n");
+//                __delay_cycles(32000000);
+//                SendDataToESP("\nBRANON: Data Received & Parsed \n");
+//                __delay_cycles(80000000);
+//                FlushEspBuff(150);
+//
+//            }
+//        }
+//
+//}
+
+void check_ESP_Buff_for_TCP_client_data(struct configEspPort_USCI* pEspObj, void (*postFlushCallback)(struct configEspPort_USCI*))
+{
+    if ((pEspObj) && (pEspObj->currentState == _E8266_TCP_SERVER_MULTICONNECT_SUCCESS))
+    {
+        unsigned char* pFoundParse = NULL;
+        pFoundParse = find_pattern_in_buff(pEspObj->pEspBuff, 150, "+IPD");
+
+        if (NULL != pFoundParse)
+        {
+            __no_operation();
+            pFoundParse += 10;
+            strncpy(pEspObj->pESPBuffParsedData, pFoundParse, 20);
+
+            SendDataToESP("AT+CIPSEND=0,33\r\n");
+            __delay_cycles(32000000);
+            SendDataToESP("\nBRANON: Data Received & Parsed \n");
+            __delay_cycles(80000000);
+
+            FlushEspBuff(150);
+
+            if (postFlushCallback)
+                postFlushCallback(pEspObj);
+        }
+    }
+}
+
 
 /*
  *  Reset the buffer counter
@@ -285,6 +449,19 @@ void    ClrEspBuff(void)
             }
             _MdmBuffCnt = 0;
         }
+}
+
+void    FlushEspBuff(uint8_t count)
+{
+    uint8_t cnt;
+    if(count <= 150)
+    {
+        for (cnt = 0; cnt < count; ++cnt) {
+            _MdmBuffer[cnt]='\0';
+        }
+        _MdmBuffCnt = 0;
+    }
+
 }
 
 

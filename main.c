@@ -35,24 +35,7 @@ bool    pEspParsePatternFound = NULL;
 /*
  * Other Fxns..
  */
-char*  find_pattern_in_buff(char* buff, uint8_t buffLen, const char* pattern)
-{
-    uint8_t pattern_len = 0;
-    int i;
-    pattern_len = strlen(pattern);
-    if((pattern_len == 0)||(buffLen < pattern_len))
-    {
-        return NULL;
-    }
-    for(i=0; i <= buffLen-pattern_len; ++i)
-    {
-        if(memcmp(&buff[i], pattern, pattern_len)==0)
-        {
-            return &buff[i];
-        }
-    }
-    return NULL;
-}
+
 
 void initSend_MAX7219(unsigned short* ptrToMax7219InitMatrix, uint_fast8_t size) {
     int var = 0, dispCtr;
@@ -198,6 +181,15 @@ void    ClockTempDisplay(uint_least16_t delayInCycles) {
 
 
 }
+
+
+void handleParsedESPData(struct configEspPort_USCI* pEspObj)
+{
+    uint8_t parsedTCP_data_buff[20];
+    strncpy(&parsedTCP_data_buff[0], pEspObj->pESPBuffParsedData, 20);
+
+}
+
 /**
  * main.c
  */
@@ -234,6 +226,9 @@ int main(void)
         ._cbStringPatternFound = &pEspParsePatternFound,
         .pEspBuff = &_MdmBuffer[0],
         .pESPBuffParsedData = &_MdmCbDataParsed[0],
+        .pESP_AP_SSID = "BRANON_V6",
+        .pESP_AP_PWD = "1234567890",
+        .pESP_AP_PORT = "8989",
 
    };
    volatile gDeviceStateMachine DeviceStateMachineControlHandle = ENTRY_STATE;
@@ -265,15 +260,8 @@ int main(void)
         configEspRplyCode = ConfigureEspUART(&ESP_InitTypeDef);
         espInitRetry--;
     }
-    SendDataToESP("AT+CWMODE=2\r\n");
-    __delay_cycles(80000000);
-    SendDataToESP("AT+CWSAP=\"BRANON_V6\",\"1234567890\",6,3\r\n");
-    __delay_cycles(80000000);
-    SendDataToESP("AT+CIPMUX=1\r\n");
-    __delay_cycles(80000000);
-    SendDataToESP("AT+CIPSERVER=1,8989\r\n");// default port 333
-    __delay_cycles(80000000);
-    SendDataToESP("");// Just calls function clearbuff and resets the buffer pointer
+    ESP_InitTypeDef.requestedState = _E8266_TCP_SERVER_MULTICONNECT;
+    enable_Esp_TCP_Server(&ESP_InitTypeDef);
 //    SendDataToESP("AT+CIPSEND=0,45\r\n");
 //    __delay_cycles(80000000);
 //    SendDataToESP("You're Connected to BRANON_V6 Over TCP: 8989\n");
@@ -337,20 +325,10 @@ int main(void)
 	     *
 	     */
 	    __bis_SR_register(GIE);
-	    unsigned char* pFoundParse = NULL;
-	    pFoundParse = find_pattern_in_buff(ESP_InitTypeDef.pEspBuff, 150, "+IPD");
-	    if(NULL != pFoundParse)
-	    {
-	        __no_operation();
-	        pFoundParse += 10;
-	        strncpy(ESP_InitTypeDef.pESPBuffParsedData, pFoundParse, 20);
-	        SendDataToESP("");
 
-	    }
-//	    if(strstr("+IPD", ))
-//	    {
-//	        __no_operation();
-//	    }
+	    check_ESP_Buff_for_TCP_client_data(&ESP_InitTypeDef, &handleParsedESPData);
+
+
 	    if(gFlag)
 	    {
 	        switch (DeviceStateMachineControlHandle) {

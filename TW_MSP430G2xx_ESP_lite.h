@@ -127,6 +127,9 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
         _E8266_SEND_TIMEOUT,
         _E8266_MODULE_EXIT,
         _E8266_SM_CMD_ERROR,    // State MAchine Command could not be processed as the present state is wrong or not allowed
+        _E8266_TCP_SERVER_MULTICONNECT,
+        _E8266_TCP_SERVER_MULTICONNECT_SUCCESS,
+        _E8266_TCP_SERVER_MULTICONNECT_FAIL,
         _E8266_TEST_ENUM,
 
 } esp8266StateMachines;
@@ -155,6 +158,9 @@ struct      configEspPort_USCI  {
                                 unsigned char*      pEspBuff;
                                 unsigned char*      pESPBuffParsedData;
             char*               _MdmIPAddr;
+            char*               pESP_AP_SSID;
+            char*               pESP_AP_PWD;
+            char*               pESP_AP_PORT;
                                 esp8266StateMachines currentState;
                                 esp8266StateMachines requestedState;
 
@@ -169,9 +175,12 @@ struct      configEspPort_USCI  {
 
 //extern                      esp8266StateMachines resetESP8266(void);          // generates a reset to the esp device
 //extern                      esp8266StateMachines moduleInitDiag(esp8266StateMachines);
-extern                      uint8_t ConfigureEspUART(struct configEspPort_USCI* );
+extern                                  uint8_t ConfigureEspUART(struct configEspPort_USCI* );
 extern                      void                SendDataToESP(const uint8_t* data);
 extern                      void                SendCharToESP(unsigned char);
+extern                      void                enable_Esp_TCP_Server(struct configEspPort_USCI*);
+extern                      void                FlushEspBuff(uint8_t count);
+extern                      void                check_ESP_Buff_for_TCP_client_data(struct configEspPort_USCI* , void (*postFlushCallback)(struct configEspPort_USCI*));
 
 //extern                      esp8266StateMachines ESP_PinSetup(void);
 //extern                      esp8266StateMachines ESP_ON_OFF(uint8_t);

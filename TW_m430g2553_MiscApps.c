@@ -127,4 +127,5 @@ void calculate_light_intensity(uint16_t adc_value, int* p_computedLux) {
 #endif
 }
 
+
 #endif /* TW_M430G2553_MISCAPPS_H_*/
