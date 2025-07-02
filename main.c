@@ -185,9 +185,78 @@ void    ClockTempDisplay(uint_least16_t delayInCycles) {
 
 void handleParsedESPData(struct configEspPort_USCI* pEspObj)
 {
-    uint8_t parsedTCP_data_buff[20];
-    strncpy(&parsedTCP_data_buff[0], pEspObj->pESPBuffParsedData, 20);
+    //uint8_t parsedTCP_data_buff[20];
+    //strncpy(&parsedTCP_data_buff[0], pEspObj->pESPBuffParsedData, 20);
+    // SetRtcData[7] = {0x00, 0x48, 0x18, 0x04, 0x22, 0x05, 0x25};//ss mm hh DoW DD MM YY
+    // TCP Data format: hhmmssDDMMYYYY(dow)00000
+    uint8_t temp_data;
+    // extracting hh
+    temp_data = *pEspObj->pESPBuffParsedData;
+    pEspObj->pESPBuffParsedData++;
+    temp_data <<= 4;
+    temp_data |= (*(pEspObj->pESPBuffParsedData) & 0x0F);
+    SetRtcData[2] = temp_data;
 
+    pEspObj->pESPBuffParsedData++;
+
+    // extracting mm
+    temp_data = *pEspObj->pESPBuffParsedData;
+    pEspObj->pESPBuffParsedData++;
+    temp_data <<= 4;
+    temp_data |= (*(pEspObj->pESPBuffParsedData) & 0x0F);
+    SetRtcData[1] = temp_data;
+
+    pEspObj->pESPBuffParsedData++;
+
+    // extracting ss
+    temp_data = *pEspObj->pESPBuffParsedData;
+    pEspObj->pESPBuffParsedData++;
+    temp_data <<= 4;
+    temp_data |= (*(pEspObj->pESPBuffParsedData) & 0x0F);
+    SetRtcData[0] = temp_data;
+
+    pEspObj->pESPBuffParsedData++;
+
+    // extracting DD
+    temp_data = *pEspObj->pESPBuffParsedData;
+    pEspObj->pESPBuffParsedData++;
+    temp_data <<= 4;
+    temp_data |= (*(pEspObj->pESPBuffParsedData) & 0x0F);
+    SetRtcData[4] = temp_data;
+
+    pEspObj->pESPBuffParsedData++;
+
+    // extracting MM
+    temp_data = *pEspObj->pESPBuffParsedData;
+    pEspObj->pESPBuffParsedData++;
+    temp_data <<= 4;
+    temp_data |= (*(pEspObj->pESPBuffParsedData) & 0x0F);
+    SetRtcData[5] = temp_data;
+
+    pEspObj->pESPBuffParsedData++;
+    pEspObj->pESPBuffParsedData++; //skipping Y of YYYY
+    pEspObj->pESPBuffParsedData++; //skipping YY of YYYY
+
+    // extracting YY
+    temp_data = *pEspObj->pESPBuffParsedData;
+    pEspObj->pESPBuffParsedData++;
+    temp_data <<= 4;
+    temp_data |= (*(pEspObj->pESPBuffParsedData) & 0x0F);
+    SetRtcData[6] = temp_data;
+
+    pEspObj->pESPBuffParsedData++;
+
+    // extracting (dow)
+    temp_data = *pEspObj->pESPBuffParsedData;
+    pEspObj->pESPBuffParsedData++;
+    temp_data <<= 4;
+    temp_data |= (*(pEspObj->pESPBuffParsedData) & 0x0F);
+    SetRtcData[3] = temp_data;
+
+    pEspObj->pESPBuffParsedData++;
+
+
+    I2CSLV_Save_Burst(0x68, 0, SetRtcData, 7);
 }
 
 /**
